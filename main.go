@@ -47,12 +47,12 @@ var (
 	humanReadable      = flag.Bool("human-readable", true, "use human readable label names instead of hex codes, possibly not all codes can be translated")
 	kubeconfig         = flag.String("kubeconfig", "", "path to kubeconfig")
 	hostname           = flag.String("hostname", "", "Hostname of the node on which this process is running")
-	noContain          = flag.StringSlice("no-contain", []string{"hub", "usb"}, "list of strings, usb devices containing these strings will not be considered fot labeling")
+	noContain          = flag.StringSlice("no-contain", []string{}, "list of strings, usb devices containing these case-insensitive strings will not be considered for labeling")
 	lMod               = flag.StringSliceP("label-mod", "m", []string{}, "list of strings, kernel modules matching a string will be used as labels with values true, if found")
 	logLevel           = flag.String("log-level", logLevelInfo, fmt.Sprintf("Log level to use. Possible values: %s", availableLogLevels))
-	updateTime         = flag.Int("update-time", 10, "renewal time for labels in seconds")
-	labelPrefix        = flag.String("label-prefix", "nodel.squat.ai", "prefix for labels")
-	addr               = flag.String("liste-address", ":8080", "listen address for prometheus metrics server")
+	updateTime         = flag.Duration("update-time", 10*time.Second, "renewal time for labels in seconds")
+	labelPrefix        = flag.String("label-prefix", "nudl.squat.ai", "prefix for labels")
+	addr               = flag.String("listen-address", ":8080", "listen address for prometheus metrics server")
 	availableLogLevels = strings.Join([]string{
 		logLevelAll,
 		logLevelDebug,
@@ -118,7 +118,7 @@ func createLabels(nl *labels) func(*gousb.DeviceDesc) bool {
 	return func(desc *gousb.DeviceDesc) bool {
 		// filter values that are not supposed to be used as labels
 		for _, str := range *noContain {
-			if strings.Contains(usbid.Describe(desc), str) {
+			if strings.Contains(strings.ToLower(usbid.Describe(desc)), strings.ToLower(str)) {
 				return false
 			}
 		}
@@ -373,12 +373,10 @@ func Main() error {
 		panic(err.Error())
 	}
 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
-
-	level.Info(logger).Log("msg", "start service")
 	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, os.Interrupt)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+
+	level.Info(logger).Log("msg", "start service", "no-contain", *noContain, "label-prefix", *labelPrefix, "label-mod", *lMod)
 	// use a mutex to avoid simultaneous updates at small update-time or slow network speed
 	var mutex sync.Mutex
 	for {
@@ -399,7 +397,7 @@ func Main() error {
 			}
 			level.Info(logger).Log("msg", "shutting down")
 			os.Exit(130)
-		case <-time.After(time.Duration(*updateTime) * time.Second):
+		case <-time.After(*updateTime):
 			mutex.Lock()
 			// use a go routine, so the time to update the labels doesn't influence the frequency of updates
 			go func() {

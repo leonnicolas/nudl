@@ -11,6 +11,8 @@ jobs:
       - 
         name: Checkout
         uses: actions/checkout@v2
+      - id: sha
+        run: echo "::set-output name=sha::$(git describe --always --tags --dirty)"
       -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v1
@@ -30,7 +32,7 @@ jobs:
         with:
           push: true
           platforms: linux/arm64, linux/arm, linux/amd64
-          tags: leonnicolas/nodeuml:latest
+          tags: leonnicolas/nudl:latest, leonnicolas/nudl:${{ steps.sha.outputs.sha }}
       -
         name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
