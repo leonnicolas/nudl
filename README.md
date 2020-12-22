@@ -40,7 +40,7 @@ Otherwise __nudl__ will try to translate the vendor and device codes into human 
 
 The above example would look like:
 ```
-nudl.sqiat.ai/Chicony-Electronics-Co.--Ltd_Unknown:true
+nudl.squat.ai/Chicony-Electronics-Co.--Ltd_Unknown:true
 ```
 
 Check out [http://www.linux-usb.org/usb-ids.html](http://www.linux-usb.org/usb-ids.html) for more information about what devices are known.
