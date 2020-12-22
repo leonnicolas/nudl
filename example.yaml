@@ -48,11 +48,9 @@ spec:
       serviceAccountName: nudl
       containers:
       - name: nudl
-        imagePullPolicy: Always
         image: leonnicolas/nudl
         args: 
         - --hostname=$(NODE_NAME)
-        - --label-mod=wireguard
         - --no-contain=usb,hub
         env:
         - name: NODE_NAME

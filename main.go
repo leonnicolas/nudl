@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -48,7 +47,6 @@ var (
 	kubeconfig         = flag.String("kubeconfig", "", "path to kubeconfig")
 	hostname           = flag.String("hostname", "", "Hostname of the node on which this process is running")
 	noContain          = flag.StringSlice("no-contain", []string{}, "list of strings, usb devices containing these case-insensitive strings will not be considered for labeling")
-	lMod               = flag.StringSliceP("label-mod", "m", []string{}, "list of strings, kernel modules matching a string will be used as labels with values true, if found")
 	logLevel           = flag.String("log-level", logLevelInfo, fmt.Sprintf("Log level to use. Possible values: %s", availableLogLevels))
 	updateTime         = flag.Duration("update-time", 10*time.Second, "renewal time for labels in seconds")
 	labelPrefix        = flag.String("label-prefix", "nudl.squat.ai", "prefix for labels")
@@ -75,12 +73,6 @@ var (
 		prometheus.CounterOpts{
 			Name: "usb_scan_errors_total",
 			Help: "total errors in usb scans",
-		},
-	)
-	scanModErr = prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Name: "scan_mod_errors_total",
-			Help: "total errors in kernel module scans",
 		},
 	)
 	labelGauge = prometheus.NewGauge(
@@ -140,39 +132,6 @@ func scanUSB() (labels, error) {
 	return l, nil
 }
 
-func stringToMap(str string) map[string]struct{} {
-	ret := make(map[string]struct{})
-	for _, s := range strings.Split(str, ";") {
-		ret[s] = struct{}{}
-	}
-	return ret
-}
-
-func scanMod() (labels, error) {
-	file, err := os.Open("/proc/modules")
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-
-	mods := make(map[string]struct{})
-	for scanner.Scan() {
-		s := strings.Split(scanner.Text(), " ")
-		mods[s[0]] = struct{}{}
-	}
-	ret := make(labels)
-	for _, m := range *lMod {
-		if _, ok := mods[m]; ok {
-			ret[fmt.Sprintf("%s/%s", *labelPrefix, m)] = "true"
-		} else {
-			ret[fmt.Sprintf("%s/%s", *labelPrefix, m)] = "false"
-		}
-	}
-	return ret, nil
-}
-
 func filter(m map[string]string) labels {
 	ret := make(labels)
 	for k, v := range m {
@@ -225,29 +184,11 @@ func scanAndLabel(ctx context.Context, clientset *kubernetes.Clientset, logger l
 	// scan usb device
 	nl, err := scanUSB()
 	if err != nil {
-		level.Error(logger).Log("msg", "could not scan usb devices", "err", err)
-		scanUSBErr.Inc()
-		// in case usb scan was unsuccessful, prevent future function calls from failing because nl is nil
-		nl = make(labels)
+		return fmt.Errorf("couldn not scan usb devices: %w", err)
 	} else {
 		level.Debug(logger).Log("msg", "successfully scanned usb device")
-
-	}
-	// scan modules
-	if len(*lMod) > 0 {
-		ml, err := scanMod()
-		if err != nil {
-			level.Error(logger).Log("msg", "could not scan kernel modules", "err", err)
-			scanModErr.Inc()
-		} else {
-			level.Debug(logger).Log("msg", "merging labels")
-			nl.addLabels(ml)
-		}
-	} else {
-		level.Debug(logger).Log("msg", "skip scanning kernel modules")
 	}
 	labelGauge.Set(float64(len(nl)))
-	level.Debug(logger).Log("msg", fmt.Sprintf("merged labels: %v", nl))
 	node.ObjectMeta.Labels = merge(node.ObjectMeta.Labels, nl)
 	newData, err := json.Marshal(node)
 	if err != nil {
@@ -376,7 +317,7 @@ func Main() error {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 
-	level.Info(logger).Log("msg", "start service", "no-contain", *noContain, "label-prefix", *labelPrefix, "label-mod", *lMod)
+	level.Info(logger).Log("msg", "start service", "no-contain", *noContain, "label-prefix", *labelPrefix)
 	// use a mutex to avoid simultaneous updates at small update-time or slow network speed
 	var mutex sync.Mutex
 	for {
