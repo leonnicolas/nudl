@@ -1,6 +1,6 @@
 # nudl
 
-Node Usb Device Labeler - label nodes in kubernetes, according to their usb devices.
+Node Usb Device Labeler - label Kubernetes nodes according to their USB devices.
 
 ## Usage
 
@@ -10,7 +10,7 @@ kubectl apply -f https://raw.githubusercontent.com/leonnicolas/nudl/main/example
 ```
 
 ### Configure the Labeler
-```bash
+```
 Usage of ./nudl:
       --hostname string         Hostname of the node on which this process is running
       --human-readable          use human readable label names instead of hex codes, possibly not all codes can be translated (default true)
@@ -23,30 +23,29 @@ Usage of ./nudl:
       --usb-debug int           libusb debug level (0..3)
 ```
 
-### Labels of USB devices
+### Label USB devices
 
-If __--human-readable=false__, the names of vendor and device will be four hex charackters each. The generated label will be 
+If __--human-readable=false__, vendor and device codes will be four hex characters each. The generated label will be of the form:
 ```
 <label_prefix>/<vendor>_<device>=true
 ```
 for example:
 ```
-nudl.example.com/04f2_b420=true
+nudl.squat.ai/04f2_b420=true
 ```
-Otherwise __nudle__ will try to translate the vednor and device codes into human readable strings with the [usbid](https://godoc.org/github.com/google/gousb/usbid) package that uses [http://www.linux-usb.org/usb.ids](http://www.linux-usb.org/usb.ids). If the codes are not found the name defaults to _Unknown_. Since some charackters are not allowed in kubernetes labels, forbitten charackters are converted into "-".
+Otherwise __nudl__ will try to translate the vendor and device codes into human readable strings using the [usbid](https://godoc.org/github.com/google/gousb/usbid) package, which uses [http://www.linux-usb.org/usb.ids](http://www.linux-usb.org/usb.ids). If the codes are not found, the name defaults to _Unknown_. Since some characters are not allowed in Kubernetes labels, forbidden characters are converted into "-".
 
-The above example would look like this
+The above example would look like:
 ```
-nudl.example.com/Chicony-Electronics-Co.--Ltd_Unknown:true
+nudl.squat.ai/Chicony-Electronics-Co.--Ltd_Unknown:true
 ```
 
 Check out [http://www.linux-usb.org/usb-ids.html](http://www.linux-usb.org/usb-ids.html) for more information about what devices are known.
 
 ### Exclude USB devices
-If you don't care about usb hubs or other things, use the --no-contain flag.
+Use the `--no-contain` flag to exclude USB devices that can be ignored, e.g. USB hubs.
 
 ### Outside the cluster
-
 ```bash
 docker run --rm -v ~/.kube:/mnt leonnicolas/nudl --kubeconfig /mnt/k3s.yaml --hostname example_host
 ```
