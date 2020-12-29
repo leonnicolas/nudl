@@ -69,12 +69,6 @@ var (
 		},
 		[]string{"success"},
 	)
-	scanUSBErr = prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Name: "usb_scan_errors_total",
-			Help: "total errors in usb scans",
-		},
-	)
 	labelGauge = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "number_labels",
@@ -89,6 +83,7 @@ var (
 	regTrim  *regexp.Regexp
 )
 
+// genKey generates a key with prefix labelPrefix out of a device description
 func genKey(desc *gousb.DeviceDesc) string {
 	var key string
 	if *humanReadable {
@@ -106,6 +101,8 @@ func genKey(desc *gousb.DeviceDesc) string {
 	return fmt.Sprintf("%s/%s", *labelPrefix, key)
 }
 
+// createLables is a wrapper function to pass it to gousb.Context.OpenDevices()
+// the returned function will always return false to not open any usb device
 func createLabels(nl *labels) func(*gousb.DeviceDesc) bool {
 	return func(desc *gousb.DeviceDesc) bool {
 		// filter values that are not supposed to be used as labels
@@ -119,6 +116,7 @@ func createLabels(nl *labels) func(*gousb.DeviceDesc) bool {
 	}
 }
 
+// scanUSB will return labels from the scanned usb devices
 func scanUSB() (labels, error) {
 	ctx := gousb.NewContext()
 	defer ctx.Close()
@@ -132,6 +130,8 @@ func scanUSB() (labels, error) {
 	return l, nil
 }
 
+// filter will filter a map of strings by its prefix
+// and return the filtered labels
 func filter(m map[string]string) labels {
 	ret := make(labels)
 	for k, v := range m {
@@ -142,12 +142,9 @@ func filter(m map[string]string) labels {
 	return ret
 }
 
-func (l1 labels) addLabels(l2 labels) {
-	for k, v := range l2 {
-		l1[k] = v
-	}
-}
-
+// merge merges labels into a map of strings
+// and returnes a map, after deleting the keys
+// that start with the prefix labelPrefix
 func merge(l map[string]string, ul labels) map[string]string {
 	// delete old labels
 	for k := range filter(l) {
@@ -162,6 +159,7 @@ func merge(l map[string]string, ul labels) map[string]string {
 	return l
 }
 
+// getNode returns the node with name hostname or an error
 func getNode(ctx context.Context, clientset *kubernetes.Clientset) (*v1.Node, error) {
 	node, err := clientset.CoreV1().Nodes().Get(ctx, *hostname, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
@@ -172,6 +170,7 @@ func getNode(ctx context.Context, clientset *kubernetes.Clientset) (*v1.Node, er
 	return node, nil
 }
 
+// scanAndLabel scans and labels the node with name hostname or returns an error
 func scanAndLabel(ctx context.Context, clientset *kubernetes.Clientset, logger log.Logger) error {
 	node, err := getNode(ctx, clientset)
 	if err != nil {
@@ -206,6 +205,7 @@ func scanAndLabel(ctx context.Context, clientset *kubernetes.Clientset, logger l
 	return nil
 }
 
+// cleanUp will remove all labels with prefix labelPrefix from the node with name hostname or return an error
 func cleanUp(clientset *kubernetes.Clientset, logger log.Logger) error {
 	ctx := context.Background()
 	node, err := getNode(ctx, clientset)
