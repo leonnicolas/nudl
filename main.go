@@ -77,13 +77,13 @@ var (
 	)
 )
 
-// have global regexps to avoid compiling them multible times
+// Use global regexps to avoid compiling them multible times.
 var (
-	regParse *regexp.Regexp
-	regTrim  *regexp.Regexp
+	regParse *regexp.Regexp = regexp.MustCompile(`^\s*(\S|\S.*\S)\s*\(\s*(\S|\S.*\S)\s*\)$`)
+	regTrim  *regexp.Regexp = regexp.MustCompile(`[^\w._-]`)
 )
 
-// genKey generates a key with prefix labelPrefix out of a device description
+// genKey generates a key with prefix labelPrefix out of a device description.
 func genKey(desc *gousb.DeviceDesc) string {
 	var key string
 	if *humanReadable {
@@ -91,7 +91,7 @@ func genKey(desc *gousb.DeviceDesc) string {
 		dev := usbid.Describe(desc)
 		device := regParse.ReplaceAll([]byte(dev), []byte("$1"))
 		vendor := regParse.ReplaceAll([]byte(dev), []byte("$2"))
-		// replace charackters not allowed in node labels
+		// Replace charackters not allowed in node labels.
 		vendor = regTrim.ReplaceAll([]byte(vendor), []byte("-"))
 		device = regTrim.ReplaceAll([]byte(device), []byte("-"))
 		key = fmt.Sprintf("%s_%s", vendor, device)
@@ -101,11 +101,11 @@ func genKey(desc *gousb.DeviceDesc) string {
 	return fmt.Sprintf("%s/%s", *labelPrefix, key)
 }
 
-// createLables is a wrapper function to pass it to gousb.Context.OpenDevices()
-// the returned function will always return false to not open any usb device
+// createLables is a wrapper function to pass it to gousb.Context.OpenDevices().
+// The returned function will always return false to not open any usb device.
 func createLabels(nl *labels) func(*gousb.DeviceDesc) bool {
 	return func(desc *gousb.DeviceDesc) bool {
-		// filter values that are not supposed to be used as labels
+		// Filter the values that are not supposed to be used as labels.
 		for _, str := range *noContain {
 			if strings.Contains(strings.ToLower(usbid.Describe(desc)), strings.ToLower(str)) {
 				return false
@@ -116,7 +116,7 @@ func createLabels(nl *labels) func(*gousb.DeviceDesc) bool {
 	}
 }
 
-// scanUSB will return labels from the scanned usb devices
+// scanUSB will return the labels from the scanned usb devices.
 func scanUSB() (labels, error) {
 	ctx := gousb.NewContext()
 	defer ctx.Close()
@@ -131,7 +131,7 @@ func scanUSB() (labels, error) {
 }
 
 // filter will filter a map of strings by its prefix
-// and return the filtered labels
+// and return the filtered labels.
 func filter(m map[string]string) labels {
 	ret := make(labels)
 	for k, v := range m {
@@ -143,23 +143,23 @@ func filter(m map[string]string) labels {
 }
 
 // merge merges labels into a map of strings
-// and returnes a map, after deleting the keys
-// that start with the prefix labelPrefix
+// and returns a map, after deleting the keys
+// that start with the prefix labelPrefix.
 func merge(l map[string]string, ul labels) map[string]string {
-	// delete old labels
+	// Delete old labels.
 	for k := range filter(l) {
 		if _, e := ul[k]; !e {
 			delete(l, k)
 		}
 	}
-	// add new labels to map
+	// Add new labels to map.
 	for k, v := range ul {
 		l[k] = v
 	}
 	return l
 }
 
-// getNode returns the node with name hostname or an error
+// getNode returns the node with name hostname or an error.
 func getNode(ctx context.Context, clientset *kubernetes.Clientset) (*v1.Node, error) {
 	node, err := clientset.CoreV1().Nodes().Get(ctx, *hostname, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
@@ -170,7 +170,7 @@ func getNode(ctx context.Context, clientset *kubernetes.Clientset) (*v1.Node, er
 	return node, nil
 }
 
-// scanAndLabel scans and labels the node with name hostname or returns an error
+// scanAndLabel scans and labels the node with name hostname or returns an error.
 func scanAndLabel(ctx context.Context, clientset *kubernetes.Clientset, logger log.Logger) error {
 	node, err := getNode(ctx, clientset)
 	if err != nil {
@@ -180,7 +180,7 @@ func scanAndLabel(ctx context.Context, clientset *kubernetes.Clientset, logger l
 	if err != nil {
 		return err
 	}
-	// scan usb device
+	// Scan usb device.
 	nl, err := scanUSB()
 	if err != nil {
 		return fmt.Errorf("couldn not scan usb devices: %w", err)
@@ -205,7 +205,7 @@ func scanAndLabel(ctx context.Context, clientset *kubernetes.Clientset, logger l
 	return nil
 }
 
-// cleanUp will remove all labels with prefix labelPrefix from the node with name hostname or return an error
+// cleanUp will remove all labels with the prefix labelPrefix from the node with name hostname or return an error.
 func cleanUp(clientset *kubernetes.Clientset, logger log.Logger) error {
 	ctx := context.Background()
 	node, err := getNode(ctx, clientset)
@@ -261,14 +261,11 @@ func Main() error {
 	}
 	logger = log.With(logger, "ts", log.DefaultTimestampUTC)
 	logger = log.With(logger, "caller", log.DefaultCaller)
-	// compile regexps
-	regParse = regexp.MustCompile(`^\s*(\S|\S.*\S)\s*\(\s*(\S|\S.*\S)\s*\)$`)
-	regTrim = regexp.MustCompile(`[^\w._-]`)
 
-	// create context to be able to cancel calls to the kubernetes API in clean up
+	// Create context to be able to cancel calls to the Kubernetes API in clean up.
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// create prometheus registry to not use default one
+	// Create prometheus registry instead of using default one.
 	r := prometheus.NewRegistry()
 	r.MustRegister(
 		reconcilingCounter,
@@ -278,7 +275,7 @@ func Main() error {
 	)
 	m := http.NewServeMux()
 	m.Handle("/metrics", promhttp.HandlerFor(r, promhttp.HandlerOpts{}))
-	// create global var for server to be able to stop the server later
+	// Create a global variable for the metrics server to be able to stop it later.
 	msrv := &http.Server{
 		Addr:    *addr,
 		Handler: m,
@@ -290,7 +287,7 @@ func Main() error {
 		}
 	}()
 
-	// generate kubeconfig
+	// Generate a kubeconfig.
 	var config *rest.Config
 	var err error
 	if *kubeconfig == "" {
@@ -308,7 +305,7 @@ func Main() error {
 		}
 		level.Info(logger).Log("msg", fmt.Sprintf("generated config with kubeconfig: %s", *kubeconfig))
 	}
-	// create the clientset
+	// Create the clientset.
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		panic(err.Error())
@@ -318,15 +315,15 @@ func Main() error {
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 
 	level.Info(logger).Log("msg", "start service", "no-contain", *noContain, "label-prefix", *labelPrefix)
-	// use a mutex to avoid simultaneous updates at small update-time or slow network speed
+	// Use a mutex to avoid simultaneous updates at small update-time or slow network speed.
 	var mutex sync.Mutex
 	for {
 		select {
 		case s := <-ch:
 			level.Info(logger).Log("msg", fmt.Sprintf("received signal %v", s))
-			// cancel context for running scan and label routine
+			// Cancel the context for running scan and label routine.
 			cancel()
-			// lock mutex to wait until running scan and label routin is finished
+			// Lock mutex to wait until the running scan and label routin is finished.
 			mutex.Lock()
 			if err := cleanUp(clientset, logger); err != nil {
 				level.Error(logger).Log("msg", "could not clean node", "err", err)
@@ -340,7 +337,7 @@ func Main() error {
 			os.Exit(130)
 		case <-time.After(*updateTime):
 			mutex.Lock()
-			// use a go routine, so the time to update the labels doesn't influence the frequency of updates
+			// Use a go routine, so the time to update the labels doesn't influence the frequency of updates.
 			go func() {
 				defer mutex.Unlock()
 				if err := scanAndLabel(ctx, clientset, logger); err != nil {

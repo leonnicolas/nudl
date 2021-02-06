@@ -1,4 +1,4 @@
-module leonnicolas/nudl
+module github.com/leonnicolas/nudl
 
 go 1.15
 
