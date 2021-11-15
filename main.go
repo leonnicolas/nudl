@@ -18,6 +18,7 @@ import (
 	"github.com/google/gousb"
 	"github.com/google/gousb/usbid"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	flag "github.com/spf13/pflag"
 	v1 "k8s.io/api/core/v1"
@@ -270,8 +271,8 @@ func Main() error {
 	r.MustRegister(
 		reconcilingCounter,
 		labelGauge,
-		prometheus.NewGoCollector(),
-		prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}),
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	)
 	m := http.NewServeMux()
 	m.Handle("/metrics", promhttp.HandlerFor(r, promhttp.HandlerOpts{}))
