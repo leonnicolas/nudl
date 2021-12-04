@@ -48,7 +48,7 @@ spec:
       serviceAccountName: nudl
       containers:
       - name: nudl
-        image: leonnicolas/nudl
+        image: ghcr.io/leonnicolas/nudl
         args: 
         - --hostname=$(NODE_NAME)
         - --no-contain=usb,hub

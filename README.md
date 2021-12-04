@@ -2,6 +2,9 @@
 
 Node Usb Device Labeler - label Kubernetes nodes according to their USB devices.
 
+[![ci](https://github.com/leonnicolas/nudl/actions/workflows/push.yaml/badge.svg)](https://github.com/leonnicolas/nudl/actions/workflows/push.yaml)
+[![Docker Pulls](https://img.shields.io/docker/pulls/leonnicolas/nudl?color=blue)](https://hub.docker.com/r/leonnicolas/nudl)
+
 ## Usage
 
 Apply the example configuration
@@ -49,3 +52,7 @@ Use the `--no-contain` flag to exclude USB devices that can be ignored, e.g. USB
 ```bash
 docker run --rm -v ~/.kube:/mnt leonnicolas/nudl --kubeconfig /mnt/k3s.yaml --hostname example_host
 ```
+
+## Images
+
+Images can be found on [Docker Hub](https://hub.docker.com/r/leonnicolas/nudl) `leonnicolas/nudl` and [GitHub Container Registry](https://ghcr.io) `ghcr.io/leonnicolas/nudl`.
