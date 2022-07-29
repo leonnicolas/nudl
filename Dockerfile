@@ -1,4 +1,4 @@
-FROM golang:1.18.0-bullseye as build
+FROM golang:1.18.4-bullseye as build
 RUN apt-get update && apt-get install libusb-1.0-0-dev  -y
 COPY . /nudl
 WORKDIR /nudl
