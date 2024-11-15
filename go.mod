@@ -1,8 +1,6 @@
 module github.com/leonnicolas/nudl
 
-go 1.22.0
-
-toolchain go1.22.2
+go 1.23.2
 
 require (
 	github.com/go-kit/log v0.2.1
