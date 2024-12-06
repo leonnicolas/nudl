@@ -1,4 +1,4 @@
-FROM golang:1.23-bookworm as build
+FROM golang:1.23-bookworm AS build
 
 RUN apt-get update && apt-get install libusb-1.0-0-dev  -y
 
@@ -7,7 +7,7 @@ WORKDIR /nudl
 COPY go.mod go.sum /nudl/
 RUN go mod download
 
-COPY . /nudl
+COPY main.go /nudl
 RUN ls -la
 WORKDIR /nudl
 RUN go build -o nudl
