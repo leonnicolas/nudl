@@ -48,6 +48,7 @@ var (
 	kubeconfig         = flag.String("kubeconfig", "", "path to kubeconfig")
 	hostname           = flag.String("hostname", "", "Hostname of the node on which this process is running")
 	noContain          = flag.StringSlice("no-contain", []string{}, "list of strings, usb devices containing these case-insensitive strings will not be considered for labeling")
+	only               = flag.StringSlice("only", []string{}, "list of strings in the format of <vendor id>_<product id>. These usb devices are considered for labeling only. If a provided device is not found, the label value will be set to false.")
 	logLevel           = flag.String("log-level", logLevelInfo, fmt.Sprintf("Log level to use. Possible values: %s", availableLogLevels))
 	updateTime         = flag.Duration("update-time", 10*time.Second, "renewal time for labels in seconds")
 	labelPrefix        = flag.String("label-prefix", "nudl.squat.ai", "prefix for labels")
@@ -84,6 +85,10 @@ var (
 	regTrim  *regexp.Regexp = regexp.MustCompile(`[^\w._-]`)
 )
 
+func sprintLabelKey(k string) string {
+	return fmt.Sprintf("%s/%s", *labelPrefix, k)
+}
+
 // genKey generates a key with prefix labelPrefix out of a device description.
 func genKey(desc *gousb.DeviceDesc) string {
 	var key string
@@ -99,7 +104,7 @@ func genKey(desc *gousb.DeviceDesc) string {
 	} else {
 		key = fmt.Sprintf("%s_%s", desc.Vendor.String(), desc.Product.String())
 	}
-	return fmt.Sprintf("%s/%s", *labelPrefix, key)
+	return sprintLabelKey(key)
 }
 
 // createLables is a wrapper function to pass it to gousb.Context.OpenDevices().
@@ -113,6 +118,7 @@ func createLabels(nl *labels) func(*gousb.DeviceDesc) bool {
 			}
 		}
 		(*nl)[genKey(desc)] = "true"
+
 		return false
 	}
 }
@@ -127,6 +133,15 @@ func scanUSB() (labels, error) {
 	l := make(labels)
 	if _, err := ctx.OpenDevices(createLabels(&l)); err != nil {
 		return nil, err
+	}
+
+	if len(*only) > 0 {
+		onlyLabels := make(labels)
+		for _, str := range *only {
+			_, ok := l[sprintLabelKey(str)]
+			onlyLabels[sprintLabelKey(str)] = fmt.Sprintf("%t", ok)
+		}
+		return onlyLabels, nil
 	}
 	return l, nil
 }
@@ -263,8 +278,13 @@ func Main() error {
 	logger = log.With(logger, "ts", log.DefaultTimestampUTC)
 	logger = log.With(logger, "caller", log.DefaultCaller)
 
+	if len(*only) > 0 && *humanReadable {
+		return fmt.Errorf("only and human-readable flags are mutually exclusive")
+	}
+
 	// Create context to be able to cancel calls to the Kubernetes API in clean up.
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// Create prometheus registry instead of using default one.
 	r := prometheus.NewRegistry()

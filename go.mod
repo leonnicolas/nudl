@@ -1,18 +1,21 @@
 module github.com/leonnicolas/nudl
 
-go 1.22.0
-
-toolchain go1.22.2
+go 1.23.2
 
 require (
+	github.com/efficientgo/core v1.0.0-rc.0
+	github.com/efficientgo/e2e v0.14.1-0.20240418111536-97db25a0c6c0
 	github.com/go-kit/log v0.2.1
 	github.com/google/gousb v1.1.3
 	github.com/prometheus/client_golang v1.19.0
 	github.com/spf13/pflag v1.0.5
+	github.com/stretchr/testify v1.8.4
 	k8s.io/api v0.30.0
 	k8s.io/apimachinery v0.30.0
 	k8s.io/client-go v0.30.0
 )
+
+replace github.com/efficientgo/e2e v0.14.1-0.20240418111536-97db25a0c6c0 => github.com/leonnicolas/e2e v0.14.1-0.20241206212748-bd1e26e8cb50
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -36,6 +39,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/common v0.48.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect

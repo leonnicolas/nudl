@@ -48,11 +48,13 @@ spec:
       serviceAccountName: nudl
       containers:
       - name: nudl
-        image: ghcr.io/leonnicolas/nudl
+        image: "nudl:e2e"
         imagePullPolicy: IfNotPresent
         args:
         - --hostname=$(NODE_NAME)
         - --no-contain=usb,hub
+        - --human-readable=false
+        - --only=test_test
         env:
         - name: NODE_NAME
           valueFrom:
