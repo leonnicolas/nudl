@@ -14,7 +14,7 @@ jobs:
         name: Checkout
         uses: actions/checkout@v4
       - id: sha
-        run: echo "::set-output name=sha::$(git describe --always --tags --dirty)"
+        run: echo "sha=$(git describe --always --tags --dirty)" >> "$GITHUB_OUTPUT"
       -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v3
