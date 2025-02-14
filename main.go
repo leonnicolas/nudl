@@ -85,31 +85,54 @@ var (
 	regTrim  *regexp.Regexp = regexp.MustCompile(`[^\w._-]`)
 )
 
-func sprintLabelKey(k string) string {
+func sPrintLabelKey(k string) string {
 	return fmt.Sprintf("%s/%s", *labelPrefix, k)
 }
 
+func hexKey(desc *gousb.DeviceDesc) string {
+	return fmt.Sprintf("%s_%s", desc.Vendor.String(), desc.Product.String())
+}
+
+func humanReadableKey(desc *gousb.DeviceDesc, logger log.Logger) (string, error) {
+	vendor := usbid.Vendors[desc.Vendor]
+	vendorName := vendor.Name
+	var deviceName string
+	if device, ok := vendor.Product[desc.Product]; ok {
+		deviceName = device.String()
+	} else {
+		level.Warn(logger).Log("msg", "could not find device name", "vendor", vendorName, "vendorID", desc.Vendor, "product", desc.Product)
+		return "", fmt.Errorf("could not find device name")
+	}
+
+	// Replace charackters not allowed in node labels.
+	vendorName = string(regTrim.ReplaceAll([]byte(vendorName), []byte("-")))
+	deviceName = string(regTrim.ReplaceAll([]byte(deviceName), []byte("-")))
+	return fmt.Sprintf("%s_%s", vendorName, deviceName), nil
+}
+
 // genKey generates a key with prefix labelPrefix out of a device description.
-func genKey(desc *gousb.DeviceDesc) string {
+func genKey(desc *gousb.DeviceDesc, logger log.Logger) string {
 	var key string
 	if *humanReadable {
-		// parse vendor and device from usbid
-		dev := usbid.Describe(desc)
-		device := regParse.ReplaceAll([]byte(dev), []byte("$1"))
-		vendor := regParse.ReplaceAll([]byte(dev), []byte("$2"))
-		// Replace charackters not allowed in node labels.
-		vendor = regTrim.ReplaceAll([]byte(vendor), []byte("-"))
-		device = regTrim.ReplaceAll([]byte(device), []byte("-"))
-		key = fmt.Sprintf("%s_%s", vendor, device)
-	} else {
-		key = fmt.Sprintf("%s_%s", desc.Vendor.String(), desc.Product.String())
+		var err error
+		key, err = humanReadableKey(desc, logger)
+		if err != nil {
+			level.Error(logger).Log("msg", "could not generate human readable key, falling back to hex encoded usb IDs", "err", err.Error())
+			key = hexKey(desc)
+		}
+		labelKey := sPrintLabelKey(key)
+		if len(labelKey) > 63 {
+			level.Warn(logger).Log("msg", "label key too long, falling back to hex device name", "humanReadableKey", key, "hexKey", hexKey(desc))
+			return sPrintLabelKey(hexKey(desc))
+		}
+		return labelKey
 	}
-	return sprintLabelKey(key)
+	return sPrintLabelKey(hexKey(desc))
 }
 
 // createLables is a wrapper function to pass it to gousb.Context.OpenDevices().
 // The returned function will always return false to not open any usb device.
-func createLabels(nl *labels) func(*gousb.DeviceDesc) bool {
+func createLabels(nl *labels, logger log.Logger) func(*gousb.DeviceDesc) bool {
 	return func(desc *gousb.DeviceDesc) bool {
 		// Filter the values that are not supposed to be used as labels.
 		for _, str := range *noContain {
@@ -117,29 +140,29 @@ func createLabels(nl *labels) func(*gousb.DeviceDesc) bool {
 				return false
 			}
 		}
-		(*nl)[genKey(desc)] = "true"
+		(*nl)[genKey(desc, logger)] = "true"
 
 		return false
 	}
 }
 
 // scanUSB will return the labels from the scanned usb devices.
-func scanUSB() (labels, error) {
+func scanUSB(logger log.Logger) (labels, error) {
 	ctx := gousb.NewContext()
 	defer ctx.Close()
 
 	ctx.Debug(*usbDebug)
 
 	l := make(labels)
-	if _, err := ctx.OpenDevices(createLabels(&l)); err != nil {
+	if _, err := ctx.OpenDevices(createLabels(&l, logger)); err != nil {
 		return nil, err
 	}
 
 	if len(*only) > 0 {
 		onlyLabels := make(labels)
 		for _, str := range *only {
-			_, ok := l[sprintLabelKey(str)]
-			onlyLabels[sprintLabelKey(str)] = fmt.Sprintf("%t", ok)
+			_, ok := l[sPrintLabelKey(str)]
+			onlyLabels[sPrintLabelKey(str)] = fmt.Sprintf("%t", ok)
 		}
 		return onlyLabels, nil
 	}
@@ -197,9 +220,9 @@ func scanAndLabel(ctx context.Context, clientset *kubernetes.Clientset, logger l
 		return err
 	}
 	// Scan usb device.
-	nl, err := scanUSB()
+	nl, err := scanUSB(logger)
 	if err != nil {
-		return fmt.Errorf("couldn not scan usb devices: %w", err)
+		return fmt.Errorf("could not scan usb devices: %w", err)
 	} else {
 		level.Debug(logger).Log("msg", "successfully scanned usb device")
 	}
