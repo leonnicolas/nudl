@@ -1,93 +1,75 @@
 package main
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"fmt"
-	"os/exec"
-	"strings"
+	"os"
 	"testing"
-	"time"
 
-	"github.com/efficientgo/core/backoff"
-	"github.com/efficientgo/e2e"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/go-kit/log"
+	"github.com/google/gousb"
 )
 
-const imageName = "nudl:e2e"
-
-func kubectl(e *e2e.KindEnvironment, args ...string) *exec.Cmd {
-	return exec.Command("kubectl", append([]string{"--kubeconfig", fmt.Sprintf("%s/kubeconfig", e.SharedDir())}, args...)...)
-}
-
-func kubectlRun(t *testing.T, e *e2e.KindEnvironment, args ...string) {
-	cmd := kubectl(e, args...)
-	w := &bytes.Buffer{}
-	cmd.Stderr = w
-	cmd.Stdout = w
-
-	require.NoError(t, cmd.Run(), w.String())
-}
-
-func TestMain(t *testing.T) {
-	e, err := e2e.NewKindEnvironment()
-	require.NoError(t, err)
-	t.Cleanup(e.Close)
-
-	runnableBuilder := e.Runnable(strings.ToLower(t.Name()))
-	runnable := runnableBuilder.Init(e2e.StartOptions{
-		Image: imageName,
-	})
-	_ = runnable.Start() // lazy hack to get image loaded into the cluster
-
-	kubectlRun(t, e, "apply", "-f", "e2e.yaml")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	t.Cleanup(cancel)
-	bo := backoff.New(ctx, backoff.Config{})
-	for {
-		var err error
-		if bo.Wait(); bo.Ongoing() {
-			cmd := kubectl(e, "wait", "pod", "--for", "condition=Ready", "--selector", "app.kubernetes.io/name=nudl")
-			if err = cmd.Run(); err == nil {
-				break
-			}
-		} else {
-			require.NoError(t, err, "timeout waiting for daemonset")
-			break
-		}
+func TestGenKey(t *testing.T) {
+	tests := []struct {
+		name          string
+		desc          gousb.DeviceDesc
+		want          string
+		humanReadable bool
+	}{
+		{
+			name:          "short label",
+			want:          "nudl.squat.ai/8086_0044",
+			humanReadable: false,
+			desc: gousb.DeviceDesc{
+				Vendor:  0x8086,
+				Product: 0x0044,
+			},
+		},
+		{
+			name:          "short label human readable",
+			want:          "nudl.squat.ai/Intel-Corp._CPU-DRAM-Controller",
+			humanReadable: true,
+			desc: gousb.DeviceDesc{
+				Vendor:  0x8086,
+				Product: 0x0044,
+			},
+		},
+		{
+			name:          "long label",
+			want:          "nudl.squat.ai/8086_0200",
+			humanReadable: false,
+			desc: gousb.DeviceDesc{
+				Vendor:  0x8086,
+				Product: 0x0200,
+			},
+		},
+		{
+			name:          "long label human readable fallback to hex",
+			want:          "nudl.squat.ai/8086_0200",
+			humanReadable: true,
+			desc: gousb.DeviceDesc{
+				Vendor:  0x8086,
+				Product: 0x0200,
+			},
+		},
+		{
+			name:          "device not found",
+			want:          "nudl.squat.ai/0001_0001",
+			humanReadable: true,
+			desc: gousb.DeviceDesc{
+				Vendor:  0x0001,
+				Product: 0x0001,
+			},
+		},
 	}
 
-	{
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		t.Cleanup(cancel)
-		bo := backoff.New(ctx, backoff.Config{})
-		found := false
-		for {
-			if bo.Wait(); bo.Ongoing() {
-				cmd := exec.Command("kubectl", "--kubeconfig", fmt.Sprintf("%s/kubeconfig", e.SharedDir()), "get", "nodes", fmt.Sprintf("%s-control-plane", e.Name()), "-o", "jsonpath={.metadata.labels}")
-				w := &bytes.Buffer{}
-				cmd.Stderr = w
-				cmd.Stdout = w
-				require.NoError(t, cmd.Run(), w.String())
-				labels := map[string]string{}
-				t.Logf("buffer %s\n", w.String())
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			humanReadable = &tc.humanReadable
 
-				require.NoError(t, json.NewDecoder(w).Decode(&labels), w.String())
-
-				for key, value := range labels {
-					if strings.HasPrefix(key, "nudl.squat.ai") {
-						found = true
-						t.Logf("found label %s=%s\n", key, value)
-						break
-					}
-				}
-			} else {
-				break
+			got := genKey(&tc.desc, log.NewLogfmtLogger(os.Stdout))
+			if got != tc.want {
+				t.Errorf("genKey() = %q; want %q", got, tc.want)
 			}
-		}
-		assert.True(t, found, "no label found")
-		require.NoError(t, err, "timeout waiting for daemonset")
+		})
 	}
 }

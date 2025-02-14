@@ -7,7 +7,16 @@ on:
     types: [created]
 
 jobs:
-  main:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - run: docker build -t "nudl:e2e" .
+
+  multi_arch:
+    needs:
+      - build
     runs-on: ubuntu-latest
     steps:
       -
