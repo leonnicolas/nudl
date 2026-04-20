@@ -17,7 +17,7 @@ func TestGenKey(t *testing.T) {
 	}{
 		{
 			name:          "short label",
-			want:          "nudl.squat.ai/8086_0044",
+			want:          "nudl.devic.es/8086_0044",
 			humanReadable: false,
 			desc: gousb.DeviceDesc{
 				Vendor:  0x8086,
@@ -26,7 +26,7 @@ func TestGenKey(t *testing.T) {
 		},
 		{
 			name:          "short label human readable",
-			want:          "nudl.squat.ai/Intel-Corp._CPU-DRAM-Controller",
+			want:          "nudl.devic.es/Intel-Corp._CPU-DRAM-Controller",
 			humanReadable: true,
 			desc: gousb.DeviceDesc{
 				Vendor:  0x8086,
@@ -35,7 +35,7 @@ func TestGenKey(t *testing.T) {
 		},
 		{
 			name:          "long label",
-			want:          "nudl.squat.ai/8086_0200",
+			want:          "nudl.devic.es/8086_0200",
 			humanReadable: false,
 			desc: gousb.DeviceDesc{
 				Vendor:  0x8086,
@@ -44,7 +44,7 @@ func TestGenKey(t *testing.T) {
 		},
 		{
 			name:          "long label human readable fallback to hex",
-			want:          "nudl.squat.ai/8086_0200",
+			want:          "nudl.devic.es/8086_0200",
 			humanReadable: true,
 			desc: gousb.DeviceDesc{
 				Vendor:  0x8086,
@@ -53,7 +53,7 @@ func TestGenKey(t *testing.T) {
 		},
 		{
 			name:          "device not found",
-			want:          "nudl.squat.ai/0001_0001",
+			want:          "nudl.devic.es/0001_0001",
 			humanReadable: true,
 			desc: gousb.DeviceDesc{
 				Vendor:  0x0001,
