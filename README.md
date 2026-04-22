@@ -18,7 +18,7 @@ Usage of ./nudl:
       --hostname string         Hostname of the node on which this process is running
       --human-readable          use human readable label names instead of hex codes, possibly not all codes can be translated (default true)
       --kubeconfig string       path to kubeconfig
-      --label-prefix string     prefix for labels (default "nudl.squat.ai")
+      --label-prefix string     prefix for labels (default "nudl.devic.es")
       --listen-address string   listen address for prometheus metrics server (default ":8080")
       --log-level string        Log level to use. Possible values: all, debug, info, warn, error, none (default "info")
       --no-contain strings      list of strings, usb devices containing these case-insensitive strings will not be considered for labeling
@@ -34,13 +34,13 @@ If __--human-readable=false__, vendor and device codes will be four hex characte
 ```
 for example:
 ```
-nudl.squat.ai/04f2_b420=true
+nudl.devic.es/04f2_b420=true
 ```
 Otherwise __nudl__ will try to translate the vendor and device codes into human readable strings using the [usbid](https://godoc.org/github.com/google/gousb/usbid) package, which uses [http://www.linux-usb.org/usb.ids](http://www.linux-usb.org/usb.ids). If the codes are not found, the name defaults to _Unknown_. Since some characters are not allowed in Kubernetes labels, forbidden characters are converted into "-".
 
 The above example would look like:
 ```
-nudl.squat.ai/Chicony-Electronics-Co.--Ltd_Unknown:true
+nudl.devic.es/Chicony-Electronics-Co.--Ltd_Unknown:true
 ```
 
 Check out [http://www.linux-usb.org/usb-ids.html](http://www.linux-usb.org/usb-ids.html) for more information about what devices are known.

@@ -51,7 +51,7 @@ var (
 	only               = flag.StringSlice("only", []string{}, "list of strings in the format of <vendor id>_<product id>. These usb devices are considered for labeling only. If a provided device is not found, the label value will be set to false.")
 	logLevel           = flag.String("log-level", logLevelInfo, fmt.Sprintf("Log level to use. Possible values: %s", availableLogLevels))
 	updateTime         = flag.Duration("update-time", 10*time.Second, "renewal time for labels in seconds")
-	labelPrefix        = flag.String("label-prefix", "nudl.squat.ai", "prefix for labels")
+	labelPrefix        = flag.String("label-prefix", "nudl.devic.es", "prefix for labels")
 	addr               = flag.String("listen-address", ":8080", "listen address for prometheus metrics server")
 	availableLogLevels = strings.Join([]string{
 		logLevelAll,
